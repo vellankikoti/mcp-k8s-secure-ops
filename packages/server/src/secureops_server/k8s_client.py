@@ -11,6 +11,8 @@ from kubernetes_asyncio import config as k8s_config
 class K8sClients:
     core_v1: Any
     apps_v1: Any
+    policy_v1: Any
+    autoscaling_v2: Any
     api_client: Any
 
 
@@ -20,11 +22,13 @@ async def build_clients(kubeconfig: str | None = None) -> K8sClients:
     else:
         try:
             await k8s_config.load_kube_config()
-        except Exception:  # multiple exc types; fall through to in-cluster
+        except Exception:
             k8s_config.load_incluster_config()  # type: ignore[no-untyped-call]
     api = k8s_client.ApiClient()
     return K8sClients(
         core_v1=k8s_client.CoreV1Api(api),
         apps_v1=k8s_client.AppsV1Api(api),
+        policy_v1=k8s_client.PolicyV1Api(api),
+        autoscaling_v2=k8s_client.AutoscalingV2Api(api),
         api_client=api,
     )
