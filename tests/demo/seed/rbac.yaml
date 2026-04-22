@@ -1,0 +1,211 @@
+# Demo RBAC seed — mirrors what helm/secureops/ would install in-cluster.
+# Per-action ServiceAccount + Role + RoleBinding for each (verb, namespace) pair.
+# Broker SA gets create on serviceaccounts/token in both namespaces.
+#
+# Naming convention (from tokens/rbac_templates.py):
+#   secureops-action-{verb}-{kind}-{namespace}  (truncated to 63 chars)
+
+# ── ACTION: restart deployment in demo-staging ────────────────────────────────
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: secureops-action-restart-deployment-demo-staging
+  namespace: demo-staging
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: secureops-action-restart-deployment-demo-staging-role
+  namespace: demo-staging
+rules:
+  - apiGroups: ["apps"]
+    resources: ["deployments"]
+    verbs: ["get", "patch"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: secureops-action-restart-deployment-demo-staging-binding
+  namespace: demo-staging
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: secureops-action-restart-deployment-demo-staging-role
+subjects:
+  - kind: ServiceAccount
+    name: secureops-action-restart-deployment-demo-staging
+    namespace: demo-staging
+
+# ── ACTION: restart deployment in demo-prod ───────────────────────────────────
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: secureops-action-restart-deployment-demo-prod
+  namespace: demo-prod
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: secureops-action-restart-deployment-demo-prod-role
+  namespace: demo-prod
+rules:
+  - apiGroups: ["apps"]
+    resources: ["deployments"]
+    verbs: ["get", "patch"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: secureops-action-restart-deployment-demo-prod-binding
+  namespace: demo-prod
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: secureops-action-restart-deployment-demo-prod-role
+subjects:
+  - kind: ServiceAccount
+    name: secureops-action-restart-deployment-demo-prod
+    namespace: demo-prod
+
+# ── ACTION: scale deployment in demo-prod ────────────────────────────────────
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: secureops-action-scale-deployment-demo-prod
+  namespace: demo-prod
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: secureops-action-scale-deployment-demo-prod-role
+  namespace: demo-prod
+rules:
+  - apiGroups: ["apps"]
+    resources: ["deployments/scale"]
+    verbs: ["get", "patch", "update"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: secureops-action-scale-deployment-demo-prod-binding
+  namespace: demo-prod
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: secureops-action-scale-deployment-demo-prod-role
+subjects:
+  - kind: ServiceAccount
+    name: secureops-action-scale-deployment-demo-prod
+    namespace: demo-prod
+
+# ── BROKER SA — can create TokenRequests in demo-staging ─────────────────────
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: secureops-broker
+  namespace: demo-staging
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: secureops-broker-tokenrequest-role
+  namespace: demo-staging
+rules:
+  - apiGroups: [""]
+    resources: ["serviceaccounts/token"]
+    verbs: ["create"]
+  - apiGroups: [""]
+    resources: ["serviceaccounts"]
+    verbs: ["get"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: secureops-broker-tokenrequest-binding
+  namespace: demo-staging
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: secureops-broker-tokenrequest-role
+subjects:
+  - kind: ServiceAccount
+    name: secureops-broker
+    namespace: demo-staging
+
+# ── BROKER SA — can create TokenRequests in demo-prod ────────────────────────
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: secureops-broker
+  namespace: demo-prod
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: secureops-broker-tokenrequest-role
+  namespace: demo-prod
+rules:
+  - apiGroups: [""]
+    resources: ["serviceaccounts/token"]
+    verbs: ["create"]
+  - apiGroups: [""]
+    resources: ["serviceaccounts"]
+    verbs: ["get"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: secureops-broker-tokenrequest-binding
+  namespace: demo-prod
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: secureops-broker-tokenrequest-role
+subjects:
+  - kind: ServiceAccount
+    name: secureops-broker
+    namespace: demo-prod
+
+# ── Cluster-wide reads for the MCP server (list namespaces, get events, etc.) ─
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: secureops-demo-reader
+rules:
+  - apiGroups: [""]
+    resources: ["namespaces", "pods", "events", "nodes", "services", "endpoints"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: ["apps"]
+    resources: ["deployments", "replicasets", "statefulsets", "daemonsets"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: ["policy"]
+    resources: ["poddisruptionbudgets"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: ["autoscaling"]
+    resources: ["horizontalpodautoscalers"]
+    verbs: ["get", "list", "watch"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: secureops-demo-reader-binding
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: secureops-demo-reader
+subjects:
+  # The MCP server runs as the user's kubeconfig identity in local-dev mode.
+  # Bind to the default service account as a backstop; kubeconfig user is
+  # usually already cluster-admin in a kind cluster.
+  - kind: ServiceAccount
+    name: secureops-broker
+    namespace: demo-staging
+  - kind: ServiceAccount
+    name: secureops-broker
+    namespace: demo-prod
