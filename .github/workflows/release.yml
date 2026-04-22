@@ -1,0 +1,115 @@
+name: release
+on:
+  push:
+    tags: ["v*"]
+permissions:
+  contents: write
+  id-token: write
+  packages: write
+
+jobs:
+  pypi-server:
+    runs-on: ubuntu-latest
+    environment: pypi-server
+    permissions: { contents: read, id-token: write }
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v3
+      - run: uv python install 3.11
+      - run: uv venv
+      - run: uv pip install build
+      - name: Build server
+        run: uv run python -m build packages/server --outdir dist-server
+      - name: Publish server
+        uses: pypa/gh-action-pypi-publish@release/v1
+        with: { packages-dir: dist-server }
+
+  pypi-policy-sdk:
+    runs-on: ubuntu-latest
+    environment: pypi-policy-sdk
+    permissions: { contents: read, id-token: write }
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v3
+      - run: uv python install 3.11
+      - run: uv venv
+      - run: uv pip install build
+      - name: Build policy_sdk
+        run: uv run python -m build packages/policy_sdk --outdir dist-policy-sdk
+      - name: Publish policy_sdk
+        uses: pypa/gh-action-pypi-publish@release/v1
+        with: { packages-dir: dist-policy-sdk }
+
+  image:
+    runs-on: ubuntu-latest
+    permissions: { contents: write, id-token: write, packages: write }
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-qemu-action@v3
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - id: build
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: packages/server/Dockerfile
+          platforms: linux/amd64,linux/arm64
+          push: true
+          tags: |
+            ghcr.io/${{ github.repository_owner }}/mcp-k8s-secure-ops:${{ github.ref_name }}
+            ghcr.io/${{ github.repository_owner }}/mcp-k8s-secure-ops:latest
+          sbom: true
+          provenance: true
+      - uses: sigstore/cosign-installer@v3.5.0
+        with: { cosign-release: v2.2.4 }
+      - name: Sign image
+        env:
+          COSIGN_EXPERIMENTAL: "1"
+          DIGEST: ${{ steps.build.outputs.digest }}
+          OWNER: ${{ github.repository_owner }}
+        run: cosign sign --yes "ghcr.io/${OWNER}/mcp-k8s-secure-ops@${DIGEST}"
+      - id: sbom
+        uses: anchore/sbom-action@v0
+        with:
+          image: "ghcr.io/${{ github.repository_owner }}/mcp-k8s-secure-ops:${{ github.ref_name }}"
+          format: cyclonedx-json
+          artifact-name: sbom-${{ github.ref_name }}.cdx.json
+      - name: Attach SBOM
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.ref_name }}
+          files: ${{ steps.sbom.outputs.SBOM_ARTIFACT_PATH }}
+
+  helm:
+    runs-on: ubuntu-latest
+    permissions: { contents: read, packages: write, id-token: write }
+    steps:
+      - uses: actions/checkout@v4
+      - uses: azure/setup-helm@v4
+      - run: echo "${{ secrets.GITHUB_TOKEN }}" | helm registry login ghcr.io -u ${{ github.actor }} --password-stdin
+      - name: Package + push charts
+        run: |
+          helm package helm/secureops
+          helm package helm/secureops-kyverno
+          helm push secureops-*.tgz oci://ghcr.io/${{ github.repository_owner }}/charts
+          helm push secureops-kyverno-*.tgz oci://ghcr.io/${{ github.repository_owner }}/charts
+
+  policy-bundle:
+    runs-on: ubuntu-latest
+    permissions: { contents: read, packages: write, id-token: write }
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install oras
+        run: |
+          curl -L https://github.com/oras-project/oras/releases/download/v1.2.0/oras_1.2.0_linux_amd64.tar.gz | tar xz
+          sudo mv oras /usr/local/bin/
+      - run: echo "${{ secrets.GITHUB_TOKEN }}" | oras login ghcr.io -u ${{ github.actor }} --password-stdin
+      - name: Push OPA bundle
+        run: |
+          cd policies/opa
+          oras push ghcr.io/${{ github.repository_owner }}/secureops-policies:${{ github.ref_name }} \
+            ./secureops/:application/vnd.openpolicyagent.policy.layer.v1+rego
