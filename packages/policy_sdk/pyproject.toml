@@ -1,6 +1,6 @@
 [project]
 name = "mcp-secureops-policy-sdk"
-version = "0.1.0"
+version = "1.0.0"
 description = "Helpers for writing OPA rego + Kyverno policies against mcp-k8s-secure-ops models."
 readme = "README.md"
 requires-python = ">=3.11"
