@@ -25,3 +25,10 @@ jobs:
         with: { version: latest }
       - name: opa test
         run: opa test policies/opa -v
+      - name: install kyverno CLI
+        run: |
+          curl -sSLO https://github.com/kyverno/kyverno/releases/download/v1.13.0/kyverno-cli_v1.13.0_linux_x86_64.tar.gz
+          tar xzf kyverno-cli_v1.13.0_linux_x86_64.tar.gz
+          sudo mv kyverno /usr/local/bin/
+      - name: kyverno test
+        run: kyverno test tests/policy/kyverno/

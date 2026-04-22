@@ -1,0 +1,25 @@
+apiVersion: kyverno.io/v1
+kind: ClusterPolicy
+metadata:
+  name: secureops-deny-prod-scale-zero
+spec:
+  validationFailureAction: Enforce
+  background: false
+  rules:
+    - name: deny-prod-scale-zero
+      match:
+        any:
+          - resources:
+              kinds: ["Deployment"]
+              operations: ["UPDATE"]
+      validate:
+        message: "scaling a prod-tier Deployment to 0 replicas is denied"
+        deny:
+          conditions:
+            all:
+              - key: "{{`{{ request.object.spec.replicas }}`}}"
+                operator: Equals
+                value: 0
+              - key: "{{`{{ request.namespace.metadata.labels.tier || '' }}`}}"
+                operator: Equals
+                value: prod

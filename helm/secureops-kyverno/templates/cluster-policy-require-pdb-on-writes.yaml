@@ -1,0 +1,20 @@
+apiVersion: kyverno.io/v1
+kind: ClusterPolicy
+metadata:
+  name: secureops-require-pdb-annotation-on-prod-writes
+spec:
+  validationFailureAction: Audit
+  background: false
+  rules:
+    - name: warn-missing-pdb-check
+      match:
+        any:
+          - resources:
+              kinds: ["Deployment"]
+              operations: ["UPDATE"]
+      validate:
+        message: "prod Deployment modified without a visible PDB annotation; confirm PDB exists"
+        pattern:
+          metadata:
+            annotations:
+              secureops.io/pdb-checked: "?*"

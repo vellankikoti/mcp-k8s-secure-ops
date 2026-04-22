@@ -1,0 +1,14 @@
+apiVersion: cli.kyverno.io/v1alpha1
+kind: Test
+metadata:
+  name: secureops-kyverno-tests
+policies:
+  - cluster-policy-prod-scale-zero.yaml
+resources:
+  - resources.yaml
+results:
+  - policy: secureops-deny-prod-scale-zero
+    rule: deny-prod-scale-zero
+    resource: checkout-scaled-zero
+    kind: Deployment
+    result: fail
