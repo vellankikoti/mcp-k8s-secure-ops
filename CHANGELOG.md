@@ -6,6 +6,7 @@ Release-pipeline fixes; no functional changes in the package.
 
 ### Fixed
 - Dockerfile: use `uv build --out-dir packages/server/dist` so the multi-stage COPY can find the wheel.
+- Dockerfile: run `pip install` as root before switching to USER 10001 to avoid permission error on pip's home-dir cache.
 - release.yml: iterate Helm chart tarballs individually so `helm push` doesn't interpret a second .tgz as the remote URL.
 
 ## v1.0.0 — 2026-04-22
