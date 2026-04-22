@@ -7,6 +7,10 @@ from fastmcp import FastMCP
 from secureops_server.context import Capability
 from secureops_server.models import K8sRef
 from secureops_server.runtime import get_context
+from secureops_server.tools.blast_radius.check_pdb_impact import check_pdb_impact
+from secureops_server.tools.blast_radius.compute_blast_radius import compute_blast_radius
+from secureops_server.tools.blast_radius.find_dependents import find_dependents
+from secureops_server.tools.blast_radius.get_traffic_snapshot import get_traffic_snapshot
 from secureops_server.tools.cluster_state.describe_workload import describe_workload
 from secureops_server.tools.cluster_state.find_unhealthy_workloads import find_unhealthy_workloads
 from secureops_server.tools.cluster_state.get_pod_logs import get_pod_logs
@@ -68,6 +72,50 @@ async def find_unhealthy_workloads_tool(
     ctx = await get_context()
     guarded = ctx.guard(needs=frozenset({Capability.K8S}))
     return await find_unhealthy_workloads(guarded, namespace=namespace)
+
+
+@mcp.tool(name="compute_blast_radius")
+async def compute_blast_radius_tool(kind: str, namespace: str, name: str) -> dict[str, Any]:
+    """Compute blast radius for a target Deployment."""
+    ctx = await get_context()
+    needs: frozenset[Capability] = (
+        frozenset({Capability.K8S, Capability.PROM}) if ctx.prom else frozenset({Capability.K8S})
+    )
+    guarded = ctx.guard(needs=needs)
+    target = K8sRef(kind=kind, api_version="apps/v1", namespace=namespace, name=name)
+    br = await compute_blast_radius(guarded, target)
+    return br.model_dump()
+
+
+@mcp.tool(name="check_pdb_impact")
+async def check_pdb_impact_tool(
+    kind: str, namespace: str, name: str, target_available: int
+) -> list[dict[str, Any]]:
+    """Check whether a target-available count would violate any PDB."""
+    ctx = await get_context()
+    guarded = ctx.guard(needs=frozenset({Capability.K8S}))
+    target = K8sRef(kind=kind, api_version="apps/v1", namespace=namespace, name=name)
+    violations = await check_pdb_impact(guarded, target, target_available=target_available)
+    return [v.model_dump() for v in violations]
+
+
+@mcp.tool(name="get_traffic_snapshot")
+async def get_traffic_snapshot_tool(namespace: str, name: str) -> dict[str, Any]:
+    """Return a Prometheus-derived traffic snapshot for a Service."""
+    ctx = await get_context()
+    guarded = ctx.guard(needs=frozenset({Capability.PROM}))
+    svc = K8sRef(kind="Service", api_version="v1", namespace=namespace, name=name)
+    return (await get_traffic_snapshot(guarded, svc)).model_dump()
+
+
+@mcp.tool(name="find_dependents")
+async def find_dependents_tool(kind: str, namespace: str, name: str) -> list[dict[str, Any]]:
+    """Return transitive dependents (Ingresses beyond selecting Services) of a Deployment."""
+    ctx = await get_context()
+    guarded = ctx.guard(needs=frozenset({Capability.K8S}))
+    target = K8sRef(kind=kind, api_version="apps/v1", namespace=namespace, name=name)
+    deps = await find_dependents(guarded, target)
+    return [d.model_dump() for d in deps]
 
 
 def run_stdio() -> None:

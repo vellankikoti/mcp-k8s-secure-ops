@@ -17,6 +17,10 @@ async def test_cluster_state_tools_registered() -> None:
         "get_recent_events",
         "get_pod_logs",
         "find_unhealthy_workloads",
+        "compute_blast_radius",
+        "check_pdb_impact",
+        "get_traffic_snapshot",
+        "find_dependents",
     }
     missing = required - names
     assert not missing, f"missing tools: {missing}"
