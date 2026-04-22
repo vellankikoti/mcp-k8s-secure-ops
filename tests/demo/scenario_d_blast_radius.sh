@@ -20,27 +20,21 @@ echo ""
 echo "  Expected JSON structure:"
 cat <<'JSON'
 {
-  "target": {
-    "name": "checkout",
-    "namespace": "demo-prod",
-    "replicas": 3
-  },
-  "pdb": {
-    "name": "checkout-pdb",
-    "min_available": 2,
-    "current_healthy": 3,
-    "disruptions_allowed": 1
+  "direct": [
+    {"kind": "Deployment", "api_version": "apps/v1", "namespace": "demo-prod", "name": "checkout", "uid": null}
+  ],
+  "one_hop": [
+    {"kind": "PodDisruptionBudget", "api_version": "policy/v1", "namespace": "demo-prod", "name": "checkout-pdb", "uid": null}
+  ],
+  "transitive": [],
+  "traffic": {
+    "rps": 0.0,
+    "error_rate": 0.0,
+    "p99_latency_ms": 0.0,
+    "source": "unavailable"
   },
   "pdb_violations": [],
-  "dependents": {
-    "direct": [],
-    "one_hop": []
-  },
-  "traffic": {
-    "source": "unavailable",
-    "p99_latency_ms": null,
-    "rps": null
-  }
+  "data_loss_risk": "none"
 }
 JSON
 echo ""
@@ -64,8 +58,8 @@ echo "  # Check for HPAs:"
 echo "  kubectl -n demo-prod get hpa 2>/dev/null || echo '(no HPAs)'"
 echo ""
 echo "── EXPECTED OUTPUT SUMMARY ─────────────────────────────────"
-echo "  pdb.disruptions_allowed=1 (can lose 1 pod of 3 and still satisfy minAvailable=2)"
-echo "  traffic.source=unavailable"
+echo "  one_hop includes checkout-pdb (PodDisruptionBudget)"
+echo "  traffic.source=unavailable (Prometheus not running in demo cluster)"
 echo "  pdb_violations=[] (a normal restart would not violate the PDB)"
 echo "  Audience takeaway: blast radius is computed BEFORE any action is taken."
 echo ""

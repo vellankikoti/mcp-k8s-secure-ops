@@ -44,7 +44,7 @@ class AuditLedger:
             exported_to=[],
         )
 
-    async def verify_chain(self) -> bool:
+    async def verify_chain(self) -> dict[str, object]:
         async with (
             aiosqlite.connect(self._db_path) as conn,
             conn.execute(
@@ -54,10 +54,27 @@ class AuditLedger:
         ):
             rows = await cur.fetchall()
         expected_prev = "0" * 64
-        for _row_id, prev_hash, row_hash, payload_json in rows:
+        rows_checked = 0
+        for row_id, prev_hash, row_hash, payload_json in rows:
+            rows_checked += 1
             if prev_hash != expected_prev:
-                return False
+                return {
+                    "ok": False,
+                    "rows_checked": rows_checked,
+                    "first_broken_row": row_id,
+                    "reason": "prev_hash_mismatch",
+                }
             if hash_row_payload(prev_hash=prev_hash, payload_json=payload_json) != row_hash:
-                return False
+                return {
+                    "ok": False,
+                    "rows_checked": rows_checked,
+                    "first_broken_row": row_id,
+                    "reason": "row_hash_mismatch",
+                }
             expected_prev = row_hash
-        return True
+        return {
+            "ok": True,
+            "rows_checked": rows_checked,
+            "first_broken_row": None,
+            "reason": None,
+        }

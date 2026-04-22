@@ -75,7 +75,11 @@ async def test_verify_chain_returns_ok_for_unbroken(tmp_path: Path):
     ledger = AuditLedger(str(db))
     for i in range(3):
         await ledger.append(_proposal(f"a{i}"), _result(f"a{i}"))
-    assert await ledger.verify_chain() is True
+    result = await ledger.verify_chain()
+    assert result["ok"] is True
+    assert result["rows_checked"] == 3
+    assert result["first_broken_row"] is None
+    assert result["reason"] is None
 
 
 @pytest.mark.asyncio
@@ -90,4 +94,7 @@ async def test_verify_chain_detects_tamper(tmp_path: Path):
     async with aiosqlite.connect(str(db)) as conn:
         await conn.execute("UPDATE audit_rows SET payload_json='{}' WHERE row_id=2")
         await conn.commit()
-    assert await ledger.verify_chain() is False
+    result = await ledger.verify_chain()
+    assert result["ok"] is False
+    assert result["first_broken_row"] == 2
+    assert result["reason"] == "row_hash_mismatch"

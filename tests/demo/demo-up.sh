@@ -80,14 +80,14 @@ install_kyverno() {
     --set backgroundController.enabled=false \
     --set cleanupController.enabled=false \
     --set reportsController.enabled=false \
-    --wait --timeout 120s
+    --wait --timeout 300s
   _ok "Kyverno installed"
 
   _step "Installing secureops-kyverno ClusterPolicies…"
   helm upgrade --install secureops-kyverno \
     "${REPO_ROOT}/helm/secureops-kyverno" \
     --namespace kyverno \
-    --wait
+    --wait --timeout 120s
   _ok "secureops-kyverno ClusterPolicies applied"
 }
 

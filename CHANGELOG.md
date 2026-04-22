@@ -1,5 +1,17 @@
 # Changelog
 
+## v1.0.2 — 2026-04-22
+
+Demo-readiness + policy-correctness fixes discovered during conference-talk dry-run.
+
+### Fixed
+- Write tool wrappers now fetch and forward target namespace labels (`parameters._namespace_labels`), so OPA rules that key on `input.target.namespace_labels["tier"]` actually evaluate correctly. Previously `prod_scale_zero_denied` and `p99_elevated_require_sre_ack` never fired.
+- `verify_chain` now returns `{ok, rows_checked, first_broken_row, reason}` instead of just `{ok}` — richer evidence when the ledger is tampered.
+- Demo harness: Kyverno install timeout bumped to 5 min (first pull is slow on fresh machines).
+- Demo RBAC seed: cover all 6 action verbs (restart, scale, rollback, evict in demo-staging/demo-prod; cordon, drain in kube-system) so TokenBroker doesn't fail on any tool call.
+- Demo RBAC cluster-reader now includes `networking.k8s.io/ingresses` for `find_dependents`.
+- Scenario cheat-sheets: corrected `$.result.opa_decision.reasons` JSON path and real `BlastRadius` shape.
+
 ## v1.0.1 — 2026-04-22
 
 Release-pipeline fixes; no functional changes in the package.

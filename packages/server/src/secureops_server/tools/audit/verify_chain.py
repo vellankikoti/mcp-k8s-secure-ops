@@ -1,9 +1,10 @@
 from __future__ import annotations
 
+from typing import Any
+
 from secureops_server.audit.ledger import AuditLedger
 
 
-async def verify_chain(db_path: str) -> dict[str, bool]:
+async def verify_chain(db_path: str) -> dict[str, Any]:
     ledger = AuditLedger(db_path)
-    ok = await ledger.verify_chain()
-    return {"ok": ok}
+    return await ledger.verify_chain()

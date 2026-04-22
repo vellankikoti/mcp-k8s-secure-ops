@@ -64,8 +64,12 @@ async def test_verify_chain_ok_then_breaks_on_tamper(tmp_path: Path):
         await ledger.append(_prop(), _res())
     out = await verify_chain(str(db))
     assert out["ok"] is True
+    assert out["rows_checked"] == 3
+    assert out["first_broken_row"] is None
     async with aiosqlite.connect(str(db)) as conn:
         await conn.execute("UPDATE audit_rows SET payload_json='{}' WHERE row_id=2")
         await conn.commit()
     out2 = await verify_chain(str(db))
     assert out2["ok"] is False
+    assert out2["first_broken_row"] == 2
+    assert out2["reason"] == "row_hash_mismatch"

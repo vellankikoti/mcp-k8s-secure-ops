@@ -180,13 +180,14 @@ async def restart_deployment_tool(namespace: str, name: str) -> dict[str, Any]:
     )
     br_ctx = ctx.guard(needs=br_needs)
     blast = await compute_blast_radius(br_ctx, target)
+    ns_labels = await _namespace_labels(ctx, namespace)
 
     proposal = ActionProposal(
         action_id=str(uuid.uuid4()),
         tool_name="restart_deployment",
         actor=Actor(mcp_client_id="mcp", human_subject=None),
         target=target,
-        parameters={},
+        parameters={"_namespace_labels": ns_labels},
         blast_radius=blast,
         requested_at=datetime.now(UTC),
     )
@@ -233,13 +234,14 @@ async def scale_workload_tool(namespace: str, name: str, replicas: int) -> dict[
     )
     br_ctx = ctx.guard(needs=br_needs)
     blast = await compute_blast_radius(br_ctx, target)
+    ns_labels = await _namespace_labels(ctx, namespace)
 
     proposal = ActionProposal(
         action_id=str(uuid.uuid4()),
         tool_name="scale_workload",
         actor=Actor(mcp_client_id="mcp", human_subject=None),
         target=target,
-        parameters={"replicas": replicas},
+        parameters={"replicas": replicas, "_namespace_labels": ns_labels},
         blast_radius=blast,
         requested_at=datetime.now(UTC),
     )
@@ -291,13 +293,14 @@ async def rollback_deployment_tool(
     )
     br_ctx = ctx.guard(needs=br_needs)
     blast = await compute_blast_radius(br_ctx, target)
+    ns_labels = await _namespace_labels(ctx, namespace)
 
     proposal = ActionProposal(
         action_id=str(uuid.uuid4()),
         tool_name="rollback_deployment",
         actor=Actor(mcp_client_id="mcp", human_subject=None),
         target=target,
-        parameters={"to_revision": to_revision},
+        parameters={"to_revision": to_revision, "_namespace_labels": ns_labels},
         blast_radius=blast,
         requested_at=datetime.now(UTC),
     )
@@ -347,13 +350,14 @@ async def drain_node_tool(name: str, plan: list[dict[str, Any]]) -> dict[str, An
     pods = [
         K8sRef(kind="Pod", api_version="v1", namespace=p["namespace"], name=p["name"]) for p in plan
     ]
+    ns_labels = await _namespace_labels(ctx, "kube-system")
 
     proposal = ActionProposal(
         action_id=str(uuid.uuid4()),
         tool_name="drain_node",
         actor=Actor(mcp_client_id="mcp", human_subject=None),
         target=target,
-        parameters={"plan": plan},
+        parameters={"plan": plan, "_namespace_labels": ns_labels},
         blast_radius=BlastRadius(
             direct=pods,
             one_hop=[],
@@ -403,12 +407,14 @@ async def cordon_node_tool(name: str, cordon: bool = True) -> dict[str, Any]:
     guarded = ctx.guard(needs=frozenset({Capability.K8S, Capability.OPA}))
     target = K8sRef(kind="Node", api_version="v1", name=name)
 
+    ns_labels = await _namespace_labels(ctx, "kube-system")
+
     proposal = ActionProposal(
         action_id=str(uuid.uuid4()),
         tool_name="cordon_node",
         actor=Actor(mcp_client_id="mcp", human_subject=None),
         target=target,
-        parameters={"cordon": cordon},
+        parameters={"cordon": cordon, "_namespace_labels": ns_labels},
         blast_radius=BlastRadius(
             direct=[],
             one_hop=[],
@@ -458,12 +464,14 @@ async def evict_pod_tool(namespace: str, name: str, reason: str) -> dict[str, An
     guarded = ctx.guard(needs=frozenset({Capability.K8S, Capability.OPA}))
     target = K8sRef(kind="Pod", api_version="v1", namespace=namespace, name=name)
 
+    ns_labels = await _namespace_labels(ctx, namespace)
+
     proposal = ActionProposal(
         action_id=str(uuid.uuid4()),
         tool_name="evict_pod",
         actor=Actor(mcp_client_id="mcp", human_subject=None),
         target=target,
-        parameters={"reason": reason},
+        parameters={"reason": reason, "_namespace_labels": ns_labels},
         blast_radius=BlastRadius(
             direct=[target],
             one_hop=[],
@@ -530,7 +538,7 @@ async def export_audit_tool(out_path: str, format: str = "ndjson") -> dict[str, 
 
 
 @mcp.tool(name="verify_chain")
-async def verify_chain_tool() -> dict[str, bool]:
+async def verify_chain_tool() -> dict[str, Any]:
     """Verify audit chain integrity."""
     db = os.environ.get("SECUREOPS_AUDIT_DB", "/var/lib/secureops/audit.db")
     return await _verify_chain(db)
@@ -601,6 +609,16 @@ def _unavailable_traffic() -> Any:
     from secureops_server.models import TrafficSnapshot
 
     return TrafficSnapshot(rps=0.0, error_rate=0.0, p99_latency_ms=0.0, source="unavailable")
+
+
+async def _namespace_labels(ctx: Any, namespace: str) -> dict[str, str]:
+    """Fetch the labels on a namespace; returns empty dict on any error."""
+    try:
+        ns = await ctx.k8s.core_v1.read_namespace(name=namespace)
+        labels: dict[str, str] = ns.metadata.labels or {}
+        return labels
+    except Exception:
+        return {}
 
 
 def run_stdio() -> None:

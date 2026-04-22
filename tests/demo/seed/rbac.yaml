@@ -69,6 +69,38 @@ subjects:
     name: secureops-action-restart-deployment-demo-prod
     namespace: demo-prod
 
+# ── ACTION: scale deployment in demo-staging ─────────────────────────────────
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: secureops-action-scale-deployment-demo-staging
+  namespace: demo-staging
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: secureops-action-scale-deployment-demo-staging-role
+  namespace: demo-staging
+rules:
+  - apiGroups: ["apps"]
+    resources: ["deployments/scale"]
+    verbs: ["get", "patch", "update"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: secureops-action-scale-deployment-demo-staging-binding
+  namespace: demo-staging
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: secureops-action-scale-deployment-demo-staging-role
+subjects:
+  - kind: ServiceAccount
+    name: secureops-action-scale-deployment-demo-staging
+    namespace: demo-staging
+
 # ── ACTION: scale deployment in demo-prod ────────────────────────────────────
 ---
 apiVersion: v1
@@ -100,6 +132,247 @@ subjects:
   - kind: ServiceAccount
     name: secureops-action-scale-deployment-demo-prod
     namespace: demo-prod
+
+# ── ACTION: rollback deployment in demo-staging ───────────────────────────────
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: secureops-action-rollback-deployment-demo-staging
+  namespace: demo-staging
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: secureops-action-rollback-deployment-demo-staging-role
+  namespace: demo-staging
+rules:
+  - apiGroups: ["apps"]
+    resources: ["deployments", "replicasets"]
+    verbs: ["get", "list", "patch", "update"]
+  - apiGroups: ["apps"]
+    resources: ["controllerrevisions"]
+    verbs: ["get", "list"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: secureops-action-rollback-deployment-demo-staging-binding
+  namespace: demo-staging
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: secureops-action-rollback-deployment-demo-staging-role
+subjects:
+  - kind: ServiceAccount
+    name: secureops-action-rollback-deployment-demo-staging
+    namespace: demo-staging
+
+# ── ACTION: rollback deployment in demo-prod ─────────────────────────────────
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: secureops-action-rollback-deployment-demo-prod
+  namespace: demo-prod
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: secureops-action-rollback-deployment-demo-prod-role
+  namespace: demo-prod
+rules:
+  - apiGroups: ["apps"]
+    resources: ["deployments", "replicasets"]
+    verbs: ["get", "list", "patch", "update"]
+  - apiGroups: ["apps"]
+    resources: ["controllerrevisions"]
+    verbs: ["get", "list"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: secureops-action-rollback-deployment-demo-prod-binding
+  namespace: demo-prod
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: secureops-action-rollback-deployment-demo-prod-role
+subjects:
+  - kind: ServiceAccount
+    name: secureops-action-rollback-deployment-demo-prod
+    namespace: demo-prod
+
+# ── ACTION: evict pod in demo-staging ────────────────────────────────────────
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: secureops-action-evict-pod-demo-staging
+  namespace: demo-staging
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: secureops-action-evict-pod-demo-staging-role
+  namespace: demo-staging
+rules:
+  - apiGroups: [""]
+    resources: ["pods/eviction"]
+    verbs: ["create"]
+  - apiGroups: [""]
+    resources: ["pods"]
+    verbs: ["get", "list"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: secureops-action-evict-pod-demo-staging-binding
+  namespace: demo-staging
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: secureops-action-evict-pod-demo-staging-role
+subjects:
+  - kind: ServiceAccount
+    name: secureops-action-evict-pod-demo-staging
+    namespace: demo-staging
+
+# ── ACTION: evict pod in demo-prod ───────────────────────────────────────────
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: secureops-action-evict-pod-demo-prod
+  namespace: demo-prod
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: secureops-action-evict-pod-demo-prod-role
+  namespace: demo-prod
+rules:
+  - apiGroups: [""]
+    resources: ["pods/eviction"]
+    verbs: ["create"]
+  - apiGroups: [""]
+    resources: ["pods"]
+    verbs: ["get", "list"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: secureops-action-evict-pod-demo-prod-binding
+  namespace: demo-prod
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: secureops-action-evict-pod-demo-prod-role
+subjects:
+  - kind: ServiceAccount
+    name: secureops-action-evict-pod-demo-prod
+    namespace: demo-prod
+
+# ── ACTION: cordon node in kube-system ───────────────────────────────────────
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: secureops-action-cordon-node-kube-system
+  namespace: kube-system
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: secureops-action-cordon-node-role
+rules:
+  - apiGroups: [""]
+    resources: ["nodes"]
+    verbs: ["get", "patch"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: secureops-action-cordon-node-binding
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: secureops-action-cordon-node-role
+subjects:
+  - kind: ServiceAccount
+    name: secureops-action-cordon-node-kube-system
+    namespace: kube-system
+
+# ── ACTION: drain node in kube-system ────────────────────────────────────────
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: secureops-action-drain-node-kube-system
+  namespace: kube-system
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: secureops-action-drain-node-role
+rules:
+  - apiGroups: [""]
+    resources: ["nodes"]
+    verbs: ["get", "patch"]
+  - apiGroups: [""]
+    resources: ["pods"]
+    verbs: ["get", "list"]
+  - apiGroups: [""]
+    resources: ["pods/eviction"]
+    verbs: ["create"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: secureops-action-drain-node-binding
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: secureops-action-drain-node-role
+subjects:
+  - kind: ServiceAccount
+    name: secureops-action-drain-node-kube-system
+    namespace: kube-system
+
+# ── BROKER SA — TokenRequest in kube-system ──────────────────────────────────
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: secureops-broker
+  namespace: kube-system
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: secureops-broker-tokenrequest-role
+  namespace: kube-system
+rules:
+  - apiGroups: [""]
+    resources: ["serviceaccounts/token"]
+    verbs: ["create"]
+  - apiGroups: [""]
+    resources: ["serviceaccounts"]
+    verbs: ["get"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: secureops-broker-tokenrequest-binding
+  namespace: kube-system
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: secureops-broker-tokenrequest-role
+subjects:
+  - kind: ServiceAccount
+    name: secureops-broker
+    namespace: kube-system
 
 # ── BROKER SA — can create TokenRequests in demo-staging ─────────────────────
 ---
@@ -189,6 +462,9 @@ rules:
     verbs: ["get", "list", "watch"]
   - apiGroups: ["autoscaling"]
     resources: ["horizontalpodautoscalers"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: ["networking.k8s.io"]
+    resources: ["ingresses"]
     verbs: ["get", "list", "watch"]
 ---
 apiVersion: rbac.authorization.k8s.io/v1

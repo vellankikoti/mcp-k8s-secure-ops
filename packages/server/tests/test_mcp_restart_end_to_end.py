@@ -80,4 +80,4 @@ async def test_restart_deployment_happy_path_records_allowed_executed(tmp_path: 
 
     assert out["status"] == "allowed_executed"
     assert out["k8s_response"]["resource_version"] == "42"
-    assert await ledger.verify_chain() is True
+    assert (await ledger.verify_chain())["ok"] is True
