@@ -132,17 +132,29 @@ start_opa() {
     run --server --log-level info --addr :8181 /policies
   _ok "OPA running at http://localhost:8181"
 
-  # brief readiness wait
-  local retries=10
+  # readiness wait — fail hard if OPA doesn't come up (demo needs it).
+  local retries=30
   while [[ $retries -gt 0 ]]; do
     if curl -sf http://localhost:8181/health &>/dev/null; then
       _ok "OPA health check passed"
-      return 0
+      # Smoke-test policy evaluation to catch rego parse errors early.
+      local probe
+      probe="$(curl -sf -X POST http://localhost:8181/v1/data/secureops/allow \
+        -H 'content-type: application/json' \
+        -d '{"input":{"tool_category":"read"}}' 2>/dev/null || true)"
+      if echo "$probe" | grep -q '"allow":true'; then
+        _ok "OPA policy smoke-test passed (read allowed)"
+        return 0
+      fi
+      _err "OPA /v1/data/secureops/allow returned unexpected output: $probe"
+      _err "Policy bundle may be malformed. See: docker logs ${OPA_CONTAINER}"
+      exit 1
     fi
     retries=$((retries - 1))
-    sleep 2
+    sleep 1
   done
-  _warn "OPA health check timed out — it may still be starting; check 'docker logs ${OPA_CONTAINER}'"
+  _err "OPA health check timed out after 30 s. See: docker logs ${OPA_CONTAINER}"
+  exit 1
 }
 
 # ── audit DB ──────────────────────────────────────────────────────────────────

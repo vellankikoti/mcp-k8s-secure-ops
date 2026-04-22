@@ -1,5 +1,7 @@
 package secureops
 
+import rego.v1
+
 test_read_allowed if {
     result := allow with input as {"tool_category": "read"}
     result.allow == true

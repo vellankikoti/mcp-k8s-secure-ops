@@ -1,5 +1,7 @@
 package secureops
 
+import rego.v1
+
 default allow := {"allow": false, "reasons": ["no_matching_rule"], "matched": []}
 
 # Reads always allowed — reads are enforced by RBAC, not OPA.

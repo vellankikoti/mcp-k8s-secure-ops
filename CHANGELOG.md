@@ -1,5 +1,18 @@
 # Changelog
 
+## v1.0.3 — 2026-04-22
+
+Demo-harness polish verified end-to-end on Apple Silicon.
+
+### Fixed
+- OPA policies now `import rego.v1` so they parse on OPA 0.68+.
+- `tests/demo/demo-up.sh` runs a strict OPA health check + policy smoke-test (denial on prod_scale_zero) — fails fast with exit 1 instead of warning if OPA is unhealthy.
+- `openpolicyagent/opa:0.68.0-static` (multi-arch) is the pinned sidecar image, replacing the amd64-only 0.65.0 that SIGILL'd under Rosetta.
+
+### Verified
+- `demo-up.sh` → `demo-down.sh` round-trip clean on arm64 macOS.
+- Live OPA denial on `scale_workload(replicas=0)` in a tier=prod namespace returns `allow=false, reasons=[prod_scale_zero_denied]`.
+
 ## v1.0.2 — 2026-04-22
 
 Demo-readiness + policy-correctness fixes discovered during conference-talk dry-run.
