@@ -20,3 +20,8 @@ jobs:
         run: uv run mypy packages/server/src packages/policy_sdk/src
       - name: pytest
         run: uv run pytest -v
+      - name: install opa
+        uses: open-policy-agent/setup-opa@v2
+        with: { version: latest }
+      - name: opa test
+        run: opa test policies/opa -v
