@@ -13,6 +13,7 @@ class K8sClients:
     apps_v1: Any
     policy_v1: Any
     autoscaling_v2: Any
+    networking_v1: Any
     api_client: Any
 
 
@@ -30,5 +31,6 @@ async def build_clients(kubeconfig: str | None = None) -> K8sClients:
         apps_v1=k8s_client.AppsV1Api(api),
         policy_v1=k8s_client.PolicyV1Api(api),
         autoscaling_v2=k8s_client.AutoscalingV2Api(api),
+        networking_v1=k8s_client.NetworkingV1Api(api),
         api_client=api,
     )
