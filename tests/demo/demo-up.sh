@@ -7,7 +7,7 @@ set -euo pipefail
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 CLUSTER_NAME="secureops-demo"
 OPA_CONTAINER="secureops-opa"
-OPA_IMAGE="openpolicyagent/opa:0.65.0"
+OPA_IMAGE="openpolicyagent/opa:0.68.0-static"
 OPA_POLICY_DIR="${REPO_ROOT}/policies/opa/secureops"
 
 # ── colour helpers ────────────────────────────────────────────────────────────
@@ -129,7 +129,7 @@ start_opa() {
     -p 8181:8181 \
     -v "${OPA_POLICY_DIR}:/policies:ro" \
     "${OPA_IMAGE}" \
-    run --server --log-level info /policies
+    run --server --log-level info --addr :8181 /policies
   _ok "OPA running at http://localhost:8181"
 
   # brief readiness wait
