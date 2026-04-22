@@ -95,8 +95,9 @@ jobs:
         run: |
           helm package helm/secureops
           helm package helm/secureops-kyverno
-          helm push secureops-*.tgz oci://ghcr.io/${{ github.repository_owner }}/charts
-          helm push secureops-kyverno-*.tgz oci://ghcr.io/${{ github.repository_owner }}/charts
+          for f in secureops-*.tgz; do
+            helm push "$f" oci://ghcr.io/${{ github.repository_owner }}/charts
+          done
 
   policy-bundle:
     runs-on: ubuntu-latest

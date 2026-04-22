@@ -3,7 +3,7 @@ WORKDIR /src
 RUN pip install --no-cache-dir uv
 COPY . .
 RUN uv sync --package mcp-k8s-secure-ops --no-dev && \
-    uv build --package mcp-k8s-secure-ops --wheel
+    uv build --package mcp-k8s-secure-ops --wheel --out-dir packages/server/dist
 
 FROM python:3.11-slim
 RUN useradd -u 10001 -r secureops && mkdir /var/lib/secureops && chown secureops /var/lib/secureops

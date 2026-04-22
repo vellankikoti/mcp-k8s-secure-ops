@@ -1,5 +1,13 @@
 # Changelog
 
+## v1.0.1 — 2026-04-22
+
+Release-pipeline fixes; no functional changes in the package.
+
+### Fixed
+- Dockerfile: use `uv build --out-dir packages/server/dist` so the multi-stage COPY can find the wheel.
+- release.yml: iterate Helm chart tarballs individually so `helm push` doesn't interpret a second .tgz as the remote URL.
+
 ## v1.0.0 — 2026-04-22
 
 **First stable release.**
