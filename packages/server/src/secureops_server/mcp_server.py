@@ -1,12 +1,17 @@
 from __future__ import annotations
 
+import uuid
+from datetime import UTC, datetime
 from typing import Any
 
 from fastmcp import FastMCP
+from kubernetes_asyncio import client as _k8s_client
 
+from secureops_server.audit.wrapper import audited_write
 from secureops_server.context import Capability
-from secureops_server.models import K8sRef
-from secureops_server.runtime import get_context
+from secureops_server.models import ActionProposal, ActionResult, Actor, K8sRef, OPADecision
+from secureops_server.runtime import get_context, get_ledger
+from secureops_server.tokens.broker import TokenBroker
 from secureops_server.tools.blast_radius.check_pdb_impact import check_pdb_impact
 from secureops_server.tools.blast_radius.compute_blast_radius import compute_blast_radius
 from secureops_server.tools.blast_radius.find_dependents import find_dependents
@@ -16,6 +21,7 @@ from secureops_server.tools.cluster_state.find_unhealthy_workloads import find_u
 from secureops_server.tools.cluster_state.get_pod_logs import get_pod_logs
 from secureops_server.tools.cluster_state.get_recent_events import get_recent_events
 from secureops_server.tools.cluster_state.list_workloads import list_workloads
+from secureops_server.tools.remediation.restart_deployment import execute_restart
 
 mcp: FastMCP = FastMCP("mcp-k8s-secure-ops")
 
@@ -116,6 +122,70 @@ async def find_dependents_tool(kind: str, namespace: str, name: str) -> list[dic
     target = K8sRef(kind=kind, api_version="apps/v1", namespace=namespace, name=name)
     deps = await find_dependents(guarded, target)
     return [d.model_dump() for d in deps]
+
+
+def _apps_from_token(token: str) -> Any:
+    cfg_default = _k8s_client.Configuration.get_default_copy()
+    cfg = _k8s_client.Configuration()
+    cfg.host = cfg_default.host
+    cfg.verify_ssl = cfg_default.verify_ssl
+    cfg.ssl_ca_cert = cfg_default.ssl_ca_cert
+    cfg.api_key = {"authorization": f"Bearer {token}"}
+    api = _k8s_client.ApiClient(cfg)
+    return _k8s_client.AppsV1Api(api)
+
+
+@mcp.tool(name="restart_deployment")
+async def restart_deployment_tool(namespace: str, name: str) -> dict[str, Any]:
+    """Restart a Deployment via a rolling rollout (OPA-gated, 5-min token)."""
+    ctx = await get_context()
+    ledger = await get_ledger()
+    guarded = ctx.guard(needs=frozenset({Capability.K8S, Capability.OPA}))
+    target = K8sRef(kind="Deployment", api_version="apps/v1", namespace=namespace, name=name)
+
+    br_needs: frozenset[Capability] = (
+        frozenset({Capability.K8S, Capability.PROM}) if ctx.prom else frozenset({Capability.K8S})
+    )
+    br_ctx = ctx.guard(needs=br_needs)
+    blast = await compute_blast_radius(br_ctx, target)
+
+    proposal = ActionProposal(
+        action_id=str(uuid.uuid4()),
+        tool_name="restart_deployment",
+        actor=Actor(mcp_client_id="mcp", human_subject=None),
+        target=target,
+        parameters={},
+        blast_radius=blast,
+        requested_at=datetime.now(UTC),
+    )
+
+    async def _opa_eval(input_doc: dict[str, Any]) -> OPADecision:
+        result: OPADecision = await guarded.opa.evaluate_allow(input_doc)
+        return result
+
+    async def _do_write() -> ActionResult:
+        broker = TokenBroker(core_v1=ctx.k8s.core_v1, ttl_seconds=300)
+        token, ttl = await broker.mint(
+            action_verb="restart", kind="Deployment", namespace=namespace
+        )
+        resp = await execute_restart(target, token=token, build_apps=_apps_from_token)
+        return ActionResult(
+            action_id=proposal.action_id,
+            status="allowed_executed",
+            opa_decision=OPADecision(
+                allow=True, reasons=[], matched_policies=[], evaluated_at=datetime.now(UTC)
+            ),
+            kyverno_warnings=[],
+            token_ttl_remaining_s=ttl,
+            k8s_response=resp,
+            error=None,
+            completed_at=datetime.now(UTC),
+        )
+
+    row = await audited_write(
+        ledger=ledger, proposal=proposal, opa_eval=_opa_eval, do_write=_do_write
+    )
+    return row.result.model_dump()
 
 
 def run_stdio() -> None:

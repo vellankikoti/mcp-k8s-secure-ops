@@ -21,6 +21,7 @@ async def test_cluster_state_tools_registered() -> None:
         "check_pdb_impact",
         "get_traffic_snapshot",
         "find_dependents",
+        "restart_deployment",
     }
     missing = required - names
     assert not missing, f"missing tools: {missing}"
