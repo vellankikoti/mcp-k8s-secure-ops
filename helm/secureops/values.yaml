@@ -1,0 +1,14 @@
+image:
+  repository: ghcr.io/vellankikoti/mcp-k8s-secure-ops
+  tag: "v0.4.0"
+  pullPolicy: IfNotPresent
+opa:
+  image: openpolicyagent/opa:0.65.0
+  logLevel: info
+policy:
+  source: configmap    # or: oci
+  ociRef: ""           # used when source=oci
+serviceAccount:
+  name: secureops-broker
+auditDb:
+  pvcSize: 1Gi

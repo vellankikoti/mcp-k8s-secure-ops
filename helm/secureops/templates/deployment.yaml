@@ -1,0 +1,47 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "secureops.name" . }}
+spec:
+  replicas: 1
+  selector:
+    matchLabels: { app: {{ include "secureops.name" . }} }
+  template:
+    metadata:
+      labels: { app: {{ include "secureops.name" . }} }
+    spec:
+      serviceAccountName: {{ .Values.serviceAccount.name }}
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 10001
+      volumes:
+        - name: policies
+          configMap: { name: {{ include "secureops.name" . }}-policies }
+        - name: audit
+          persistentVolumeClaim: { claimName: {{ include "secureops.name" . }}-audit }
+      containers:
+        - name: server
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          args: ["serve-mcp"]
+          env:
+            - name: SECUREOPS_POLICY_CONFIGMAP_PATH
+              value: /etc/policies
+            - name: SECUREOPS_AUDIT_DB
+              value: /var/lib/secureops/audit.db
+            - name: SECUREOPS_OPA_URL
+              value: http://localhost:8181
+          securityContext:
+            readOnlyRootFilesystem: true
+            allowPrivilegeEscalation: false
+          volumeMounts:
+            - { name: policies, mountPath: /etc/policies, readOnly: true }
+            - { name: audit, mountPath: /var/lib/secureops }
+        - name: opa
+          image: {{ .Values.opa.image }}
+          args: ["run", "--server", "--log-level={{ .Values.opa.logLevel }}", "/etc/policies"]
+          securityContext:
+            readOnlyRootFilesystem: true
+            allowPrivilegeEscalation: false
+          volumeMounts:
+            - { name: policies, mountPath: /etc/policies, readOnly: true }
